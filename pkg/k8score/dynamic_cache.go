@@ -88,7 +88,7 @@ func (d *DynamicResourceCache) isSkipped(gvr schema.GroupVersionResource) bool {
 				return true
 			}
 		} else {
-			if strings.ToLower(gvr.Resource) == strings.ToLower(pattern) {
+			if strings.EqualFold(gvr.Resource, pattern) {
 				return true
 			}
 		}
