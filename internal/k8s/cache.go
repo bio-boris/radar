@@ -27,6 +27,11 @@ import (
 // DebugEvents enables verbose event debugging when true (set via --debug-events flag)
 var DebugEvents bool
 
+// SkipCRDs is a list of CRD resource patterns to exclude from watching.
+// Each entry may be "group/resource" (e.g. "aquasecurity.github.io/sbomreports")
+// or plain "resource" (e.g. "sbomreports"). Set via --skip-crd flag.
+var SkipCRDs []string
+
 // TimingLogs enables [startup-timing] log lines when true (set via --dev flag).
 // These are useful for profiling startup but too noisy for production.
 var TimingLogs bool

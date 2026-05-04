@@ -45,6 +45,7 @@ type AppConfig struct {
 	Version          string
 	MCPEnabled       bool
 	AuthConfig       auth.Config
+	SkipCRDs         []string
 }
 
 // SetGlobals applies debug/test flags to global state.
@@ -55,6 +56,7 @@ func SetGlobals(cfg AppConfig) {
 	k8s.ForceDisableHelmWrite = cfg.DisableHelmWrite
 	k8s.ForceDisableExec = cfg.DisableExec
 	k8s.ForceDisableLocalTerminal = cfg.DisableLocalTerminal
+	k8s.SkipCRDs = cfg.SkipCRDs
 	server.DefaultPodShellCommand = cfg.PodShellDefault
 	versionpkg.SetCurrent(cfg.Version)
 }
@@ -469,6 +471,21 @@ func ParseKubeconfigDirs(dirs string) []string {
 		dir = strings.TrimSpace(dir)
 		if dir != "" {
 			result = append(result, dir)
+		}
+	}
+	return result
+}
+
+// ParseSkipCRDs splits a comma-separated skip-crd string into a slice of patterns.
+func ParseSkipCRDs(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var result []string
+	for entry := range strings.SplitSeq(s, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry != "" {
+			result = append(result, entry)
 		}
 	}
 	return result

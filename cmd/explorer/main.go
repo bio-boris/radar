@@ -49,6 +49,7 @@ func main() {
 	showVersion := flag.Bool("version", false, "Show version and exit")
 	historyLimit := flag.Int("history-limit", fileCfg.HistoryLimitOr(10000), "Maximum number of events to retain in timeline")
 	debugEvents := flag.Bool("debug-events", false, "Enable verbose event debugging (logs all event drops)")
+	skipCRD := flag.String("skip-crd", "", "Comma-separated list of CRD resources to skip watching (e.g. \"aquasecurity.github.io/sbomreports,sbomreports\")")
 	fakeInCluster := flag.Bool("fake-in-cluster", false, "Simulate in-cluster mode for testing (shows kubectl copy buttons instead of port-forward)")
 	disableHelmWrite := flag.Bool("disable-helm-write", false, "Simulate restricted Helm permissions (disables install/upgrade/rollback/uninstall)")
 	disableExec := flag.Bool("disable-exec", false, "Simulate restricted exec permissions (disables terminal, debug shell)")
@@ -159,6 +160,7 @@ func main() {
 		PrometheusURL:    *prometheusURL,
 		MCPEnabled:       !*noMCP,
 		Version:          version,
+		SkipCRDs:         app.ParseSkipCRDs(*skipCRD),
 		AuthConfig: auth.Config{
 			Mode:            *authMode,
 			Secret:          *authSecret,

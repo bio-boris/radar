@@ -248,4 +248,10 @@ type DynamicCacheConfig struct {
 
 	// DebugEvents enables verbose debug logging.
 	DebugEvents bool
+
+	// SkipResources is a list of resource patterns to exclude from watching.
+	// Each entry may be "group/resource" (e.g. "aquasecurity.github.io/sbomreports")
+	// to match a specific group+resource, or plain "resource" (e.g. "sbomreports")
+	// to match across all groups. Matching is case-insensitive on the resource name.
+	SkipResources []string
 }

@@ -74,14 +74,37 @@ func NewDynamicResourceCache(cfg DynamicCacheConfig) (*DynamicResourceCache, err
 }
 
 // ---------------------------------------------------------------------------
-// EnsureWatching / startWatching / probeAccess
+// isSkipped / EnsureWatching / startWatching / probeAccess
 // ---------------------------------------------------------------------------
+
+// isSkipped reports whether a GVR matches any entry in SkipResources.
+// Each entry may be "group/resource" or plain "resource" (case-insensitive on resource).
+func (d *DynamicResourceCache) isSkipped(gvr schema.GroupVersionResource) bool {
+	for _, pattern := range d.config.SkipResources {
+		if idx := strings.Index(pattern, "/"); idx >= 0 {
+			group := pattern[:idx]
+			resource := strings.ToLower(pattern[idx+1:])
+			if strings.EqualFold(gvr.Group, group) && strings.ToLower(gvr.Resource) == resource {
+				return true
+			}
+		} else {
+			if strings.ToLower(gvr.Resource) == strings.ToLower(pattern) {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 // EnsureWatching starts watching a resource type if not already watching.
 // The sync happens asynchronously — callers should use WaitForSync if they need to wait.
 func (d *DynamicResourceCache) EnsureWatching(gvr schema.GroupVersionResource) error {
 	if d == nil {
 		return fmt.Errorf("dynamic resource cache not initialized")
+	}
+
+	if d.isSkipped(gvr) {
+		return fmt.Errorf("resource %s.%s/%s is in the skip list", gvr.Resource, gvr.Group, gvr.Version)
 	}
 
 	// Check if resource supports list/watch before attempting to watch
@@ -610,6 +633,20 @@ func (d *DynamicResourceCache) WarmupParallel(gvrs []schema.GroupVersionResource
 		return
 	}
 
+	// Filter out skip-listed resources before probing
+	var filtered []schema.GroupVersionResource
+	for _, gvr := range gvrs {
+		if d.isSkipped(gvr) {
+			log.Printf("[dynamic cache] Skipping warmup for %s.%s (in skip list)", gvr.Resource, gvr.Group)
+			continue
+		}
+		filtered = append(filtered, gvr)
+	}
+	if len(filtered) == 0 {
+		return
+	}
+	gvrs = filtered
+
 	const maxConcurrentProbes = 50
 	type probeResult struct {
 		gvr schema.GroupVersionResource
@@ -766,19 +803,25 @@ func (d *DynamicResourceCache) DiscoverAllCRDs() {
 			return
 		}
 
-		// Filter out GVRs already watched from Phase 1 warmup
+		// Filter out GVRs already watched from Phase 1 warmup, and skip-listed resources
 		d.mu.RLock()
 		alreadyWatching := len(d.informers)
 		var remaining []schema.GroupVersionResource
+		var skippedCount int
 		for _, gvr := range gvrs {
-			if _, exists := d.informers[gvr]; !exists {
-				remaining = append(remaining, gvr)
+			if _, exists := d.informers[gvr]; exists {
+				continue
 			}
+			if d.isSkipped(gvr) {
+				skippedCount++
+				continue
+			}
+			remaining = append(remaining, gvr)
 		}
 		d.mu.RUnlock()
 
 		if len(remaining) == 0 {
-			log.Printf("Discovered %d watchable CRDs (all %d already watching from warmup)", len(gvrs), alreadyWatching)
+			log.Printf("Discovered %d watchable CRDs (all %d already watching from warmup, %d skipped)", len(gvrs), alreadyWatching, skippedCount)
 			return
 		}
 
@@ -833,8 +876,8 @@ func (d *DynamicResourceCache) DiscoverAllCRDs() {
 			}
 		}
 
-		log.Printf("Discovered %d watchable CRDs (%d already watching, %d small → eager, %d large → on-demand, %d no access)",
-			len(gvrs), alreadyWatching, len(eager), deferredCount, noAccessCount)
+		log.Printf("Discovered %d watchable CRDs (%d already watching, %d skipped, %d small → eager, %d large → on-demand, %d no access)",
+			len(gvrs), alreadyWatching, skippedCount, len(eager), deferredCount, noAccessCount)
 
 		if len(eager) > 0 {
 			d.WarmupParallel(eager, 30*time.Second)

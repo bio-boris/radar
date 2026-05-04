@@ -56,6 +56,7 @@ func InitDynamicResourceCache(changeCh chan k8score.ResourceChange) error {
 			NamespaceScoped: nsScoped,
 			Namespace:       ns,
 			DebugEvents:     DebugEvents,
+			SkipResources:   SkipCRDs,
 			OnReceived: func(kind string) {
 				timeline.IncrementReceived(kind)
 			},
