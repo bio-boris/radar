@@ -109,6 +109,57 @@ Radar supports switching between Kubernetes contexts at runtime through the UI. 
 
 When running in-cluster (using the pod's service account), context switching is disabled.
 
+## Metrics (Prometheus / VictoriaMetrics)
+
+Radar connects to a Prometheus-compatible metrics endpoint to power the workload CPU/memory charts and the Cost Insights view. It uses a four-layer discovery strategy:
+
+1. **Manual URL override** — if `--prometheus-url` (or `prometheusUrl` in `~/.radar/config.json`) is set, Radar uses that URL and skips all discovery.
+2. **Existing port-forward** — if a traffic-system port-forward is already active for the current context, Radar reuses it.
+3. **Well-known service names** — Radar checks a list of common Prometheus/VictoriaMetrics service names across standard monitoring namespaces (`monitoring`, `victoria-metrics`, `prometheus`, `observability`, `metrics`, `kube-system`, `default`, `opencost`, `caretta`). If a matching service is found and reachable from inside the cluster, it connects directly. If it's not reachable (e.g. you're running Radar locally), Radar starts a `kubectl port-forward` automatically.
+4. **Dynamic cluster-wide discovery** — if no well-known services match, Radar scores all cluster services by labels, port numbers, and name patterns, then connects to or port-forwards to the best candidate.
+
+### Running locally against a remote cluster
+
+When Radar runs on your laptop, cluster-internal addresses (`*.svc.cluster.local`) are not reachable. For well-known services Radar will attempt an automatic `kubectl port-forward` on your behalf. If that fails (RBAC restrictions, non-standard service name, etc.), pass the URL directly via `--prometheus-url`.
+
+**Option 1 — let Radar port-forward automatically**
+
+If your metrics service name and namespace match one of the well-known locations (see list above), Radar handles the port-forward for you. No extra steps needed.
+
+**Option 2 — manual `kubectl port-forward`**
+
+Port-forward your metrics service in one terminal, then start Radar with `--prometheus-url` pointing at the local port:
+
+```bash
+# VictoriaMetrics (single-node, default port 8428)
+kubectl port-forward -n monitoring svc/victoria-metrics-single-server 8428:8428
+
+# Prometheus (default port 9090)
+kubectl port-forward -n monitoring svc/prometheus-operated 9090:9090
+
+# In another terminal:
+kubectl radar --prometheus-url http://localhost:8428
+# or for Prometheus:
+kubectl radar --prometheus-url http://localhost:9090
+```
+
+For VictoriaMetrics Cluster (vmselect), include the API sub-path:
+
+```bash
+kubectl port-forward -n monitoring svc/vmselect 8481:8481
+kubectl radar --prometheus-url http://localhost:8481/select/0/prometheus
+```
+
+**Option 3 — persist via config file**
+
+Add `prometheusUrl` to `~/.radar/config.json` so you don't have to pass the flag every time:
+
+```json
+{
+  "prometheusUrl": "http://localhost:8428"
+}
+```
+
 ## Related Documentation
 
 - [README](../README.md#usage) — CLI flags and basic usage

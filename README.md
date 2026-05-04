@@ -145,7 +145,7 @@ radar
 | `--disable-exec` | `false` | Disable terminal and debug shell |
 | `--disable-helm-write` | `false` | Disable Helm write operations |
 | `--disable-local-terminal` | `false` | Disable local terminal feature |
-| `--prometheus-url` | (auto-discover) | Manual Prometheus/VictoriaMetrics URL (skips auto-discovery) |
+| `--prometheus-url` | (auto-discover) | Manual Prometheus/VictoriaMetrics URL (skips auto-discovery). Useful when running locally and auto port-forward isn't available — see [Metrics configuration](docs/configuration.md#metrics-prometheus--victoriametrics) |
 | `--auth-mode` | `none` | Authentication mode: `none`, `proxy`, or `oidc` ([details](docs/authentication.md)) |
 | `--no-mcp` | `false` | Disable MCP server for AI tool integration |
 | `--version` | | Show version and exit |
